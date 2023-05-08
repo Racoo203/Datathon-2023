@@ -1,0 +1,274 @@
+---
+title: "Propuesta de modelación de Atipicidad y Previsión"
+subtitle: "Datathon 2023 - KIO"
+author: "Equipo Epsilon"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+muestra = 25000
+
+tb_cpu = read.csv("cpu_DEVELOP.csv")
+indice = sample(1:nrow(tb_cpu), muestra, replace = FALSE)
+tb_cpu = tb_cpu[indice,]
+
+tb_mem = read.csv("memory_DEVELOP.csv")
+indice = sample(1:nrow(tb_mem), muestra, replace = FALSE)
+tb_mem= tb_mem[indice,]
+
+tb_net = read.csv("network_f.csv")
+indice = sample(1:nrow(tb_net), muestra, replace = FALSE)
+tb_net = tb_net[indice,]
+```
+
+# CPU METRICS
+
+```{r}
+#print(tb_cpu)
+
+tb_cpu = na.omit(tb_cpu)
+temp = tb_cpu[c(-1,-2)]
+cor(temp)
+```
+
+```{r}
+plot(temp, col = "blue")
+```
+
+```{r}
+# Parse the string as a POSIXct object
+tb_cpu$X.timestamp = as.POSIXct(tb_cpu$X.timestamp, format = "%Y-%m-%d %H:%M:%S")
+
+# Extract the time portion from the datetime object
+time_hm = format(tb_cpu$X.timestamp, format = "%H:%M")
+
+# Define the time intervals
+morning_start <- format("00:00", format = "%H:%M")
+morning_end <- format("08:00", format = "%H:%M")
+afternoon_start <- format("08:00", format = "%H:%M")
+afternoon_end <- format("16:00", format = "%H:%M")
+evening_start <- format("16:00", format = "%H:%M")
+evening_end <- format("23:59", format = "%H:%M")
+
+
+opacity = 0.3
+```
+
+## CPU: Idle contra System
+
+```{r}
+# Regression
+x = tb_cpu$Idle
+y = tb_cpu$System
+regresion = lm(y ~ x)
+summary(regresion)
+
+# Plotting the data with different colors based on time intervals
+plot(x, y,
+     col = ifelse(time_hm >= morning_start & time_hm < morning_end, rgb(178/255, 34/255, 34/255, opacity),
+                  ifelse(time_hm >= afternoon_start & time_hm < afternoon_end, rgb(255/255, 140/255, 0/255, opacity), rgb(0/255, 0/255, 139/255, opacity))),
+     xlab = "CPU Idle", ylab = "CPU System")
+abline(regresion, lwd = 2, col = "black")
+```
+## CPU: Idle contra User
+
+```{r}
+x = tb_cpu$Idle
+y = tb_cpu$User
+regresion1 = lm(y ~ exp(-x))
+regresion2 = lm(y ~ x)
+summary(regresion1)
+summary(regresion2)
+
+opacity = 0.3
+
+values = seq(0, 10, 0.1)
+
+# Plotting the data with different colors based on time intervals
+plot(x, y,
+     col = ifelse(time_hm >= morning_start & time_hm < morning_end, rgb(178/255, 34/255, 34/255, opacity),
+                  ifelse(time_hm >= afternoon_start & time_hm < afternoon_end, rgb(255/255, 140/255, 0/255, opacity), rgb(0/255, 0/255, 139/255, opacity))),
+     xlab = "CPU Idle", ylab = "CPU User")
+predictedExp = predict(regresion1,list(x=values))
+lines(values, predictedExp, col = "black", lwd = 2)
+abline(regresion2, lwd = 2, col = "darkgreen")
+```
+
+## CPU: System contra User
+
+```{r}
+x = tb_cpu$System
+y = tb_cpu$User
+regresion = lm(y ~ x)
+summary(regresion)
+
+plot(x, y,
+     col = ifelse(time_hm >= morning_start & time_hm < morning_end, rgb(178/255, 34/255, 34/255, opacity),
+                  ifelse(time_hm >= afternoon_start & time_hm < afternoon_end, rgb(255/255, 140/255, 0/255, opacity), rgb(0/255, 0/255, 139/255, opacity))),
+     xlab = "CPU System", ylab = "CPU User")
+predictedExp = predict(regresion,list(x=values))
+abline(regresion, lwd = 2, col = "black")
+```
+
+```{r}
+z = tb_cpu$Idle
+x = tb_cpu$System
+y = tb_cpu$User
+
+regresion = lm(z ~ x + y)
+summary(regresion)
+```
+
+# MEMORY METRICS
+
+```{r}
+tb_mem = na.omit(tb_mem)
+temp = tb_mem[c(3,4)]
+cor(temp)
+```
+
+```{r}
+# Parse the string as a POSIXct object
+tb_mem$X.timestamp = as.POSIXct(tb_mem$X.timestamp, format = "%Y-%m-%d %H:%M:%S")
+
+# Extract the time portion from the datetime object
+time_hm = format(tb_mem$X.timestamp, format = "%H:%M")
+
+# Define the time intervals
+morning_start <- format("00:00", format = "%H:%M")
+morning_end <- format("08:00", format = "%H:%M")
+afternoon_start <- format("08:00", format = "%H:%M")
+afternoon_end <- format("16:00", format = "%H:%M")
+evening_start <- format("16:00", format = "%H:%M")
+evening_end <- format("23:59", format = "%H:%M")
+
+
+opacity = 0.3
+```
+
+```{r}
+x1 = tb_mem$Actpercen
+x2 = tb_mem$Actpercen^2
+y = tb_mem$Swap
+regresion1 = lm(y ~ exp(x1))
+regresion2 = lm(y ~ x1 + x2)
+summary(regresion1)
+summary(regresion2)
+
+values = seq(0, 10, 0.1)
+# Plotting the data with different colors based on time intervals
+plot(x1, y,
+     col = ifelse(time_hm >= morning_start & time_hm < morning_end, rgb(178/255, 34/255, 34/255, opacity),
+                  ifelse(time_hm >= afternoon_start & time_hm < afternoon_end, rgb(255/255, 140/255, 0/255, opacity), rgb(0/255, 0/255, 139/255, opacity))),
+     xlab = "MEMORY Actpercent", ylab = "MEMORY Swap")
+
+predictedExp = predict(regresion1,list(x1=values))
+predictedParabolic = predict(regresion2,list(x1=values,x2=values^2))
+lines(values, predictedParabolic, col = "black", lwd = 2)
+lines(values, predictedExp, col = "darkgreen", lwd = 2)
+```
+
+### Validación de Modelo Parabólico
+
+#### 1. Hipótesis
+
+$H_0: \beta_1 = 0$
+
+$H_1: \beta_1 \neq 0$
+
+#### 2. Regla de decisión
+
+$\alpha = 0.05$
+
+```{r}
+n=muestra
+k=997
+alfa=0.05
+t0=qt(0.05/2,n-k-1)
+cat("t0 =",t0)
+```
+
+*Regla de decisión*:
+
+Se rechaza H0 si:
+
+-   Si $|t^*| > |t_0| = 1.9629$
+-   Si valor $p < \alpha = 0.05$
+
+#### 3. Análisis del Resultado
+
+```{r}
+summary(regresion2)
+```
+Todos los valores de P son menores al alfa establecido.
+
+#### 4. Conclusión
+
+Beta
+
+Se rechaza $H_0$, por lo que esto significa que Beta 1 es estadísticamente significativa, es decir, no hay evidencia muestre que Beta 1 es igual a cero.
+
+```{r}
+plot(regresion2,col="red",pch=20)
+```
+
+# NETWORK METRICS
+
+```{r}
+tb_net = na.omit(tb_net)
+temp = tb_net[c(3,4)]
+cor(temp)
+```
+
+```{r}
+# Parse the string as a POSIXct object
+tb_net$X.timestamp = as.POSIXct(tb_net$X.timestamp, format = "%Y-%m-%d %H:%M:%S")
+
+# Extract the time portion from the datetime object
+time_hm = format(tb_net$X.timestamp, format = "%H:%M")
+
+# Define the time intervals
+morning_start <- format("00:00", format = "%H:%M")
+morning_end <- format("08:00", format = "%H:%M")
+afternoon_start <- format("08:00", format = "%H:%M")
+afternoon_end <- format("16:00", format = "%H:%M")
+evening_start <- format("16:00", format = "%H:%M")
+evening_end <- format("23:59", format = "%H:%M")
+
+
+opacity = 0.3
+```
+
+```{r}
+x = tb_net$in.
+y = tb_net$out
+regresion = lm(y ~ x)
+summary(regresion)
+
+plot(x, y,
+     col = ifelse(time_hm >= morning_start & time_hm < morning_end, rgb(178/255, 34/255, 34/255, opacity),
+                  ifelse(time_hm >= afternoon_start & time_hm < afternoon_end, rgb(255/255, 140/255, 0/255, opacity), rgb(0/255, 0/255, 139/255, opacity))),
+     xlab = "NETWORK In", ylab = "NETWORK Out")
+#abline(regresion, lwd = 2, col = "blue")
+```
+
+```{r}
+x = tb_net$X
+y = tb_net$in.
+
+plot(x, y,
+     col = ifelse(time_hm >= morning_start & time_hm < morning_end, rgb(178/255, 34/255, 34/255, opacity),
+                  ifelse(time_hm >= afternoon_start & time_hm < afternoon_end, rgb(255/255, 140/255, 0/255, opacity), rgb(0/255, 0/255, 139/255, opacity))),
+     xlab = "NETWORK Timeline", ylab = "NETWORK In")
+#regresion = lm(y ~ x)
+#summary(regresion)
+#abline(regresion, lwd = 2, col = "blue")
+```
